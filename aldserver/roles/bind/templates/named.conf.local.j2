@@ -1,0 +1,8 @@
+zone "{{ REALM.lower() }}"{
+type master;
+file "/etc/bind/db.primary";
+};
+zone "{{ ansible_host.split('.')[2] }}.{{ ansible_host.split('.')[1] }}.{{ ansible_host.split('.')[0] }}.in-addr.arpa" {
+type master;
+file "/etc/bind/db.reverse";
+};

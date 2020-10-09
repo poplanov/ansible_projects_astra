@@ -1,0 +1,54 @@
+---
+# tasks file for bind
+    - name: Install bind9 packages
+      apt: name={{ item }} state=latest
+      loop:
+          - 'bind9'
+          - 'dnsutils'
+
+    - name: generate bind primary file
+      template: 
+        src: db.primary.j2
+        dest: /etc/bind/db.primary
+      notify: Restart bind9
+      
+    - name: generate bind reverse file
+      template: 
+        src: db.reverse.j2
+        dest: /etc/bind/db.reverse
+      notify: Restart bind9
+
+    - name: generate bind root file
+      template: 
+        src: db.root.j2
+        dest: /etc/bind/db.root 
+      notify: Restart bind9
+
+    - name: generate bind named.conf.local file
+      template: 
+        src: named.conf.local.j2
+        dest: /etc/bind/named.conf.local
+      notify: Restart bind9
+
+    - name: generate bind named.conf.options file
+      copy: 
+        src: named.conf.options
+        dest: /etc/bind/named.conf.options 
+      notify: Restart bind9
+    
+    # if NetworkManager is enabled
+    - name: Add two IPv4 DNS server addresses
+      shell: nmcli con mod {{ conname }} ipv4.dns {{ dnsip }} && nmcli con mod {{ conname }} ipv4.dns-search {{ REALM.lower() }} 
+      notify: Restart NM
+      when: NetworkManager == true
+    
+    # if NetworkManager is disabled 
+    - name: generate resolv conf
+      template: 
+        src: resolv.conf.j2
+        dest: /etc/resolv.conf    
+      when: NetworkManager == false
+     
+    - name: Enable bind9
+      service: name=bind9 state=started enabled=yes
+

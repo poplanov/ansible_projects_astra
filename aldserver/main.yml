@@ -1,0 +1,100 @@
+---
+- name: Settings up default services
+  hosts: linux1
+  become: yes
+
+  vars:
+   aldsrv_ip: 192.168.122.35
+   netmask: 255.255.255.0
+   network: 192.168.122.0
+   REALM: MIL.RU
+   adminpass: 12345678 # password for k/m and admin users for ald dc
+   dns: true
+   
+  tasks:
+  - name: Install packages 
+    apt: name={{ item }} state=latest
+    loop:
+      - "ald-server"
+      - "ald-server-common"
+      - "ald-server-parsec"
+      - "ald-server-dc"
+      - "smolensk-security-ald"
+     
+  - name: create hosts file
+    template:
+      src: template/hosts.j2
+      dest: /etc/hosts
+        
+  - name: setting up ntp
+    template: 
+      src: template/ntp.conf.j2 
+      dest: /etc/ntp.conf
+    notify: Restart ntp
+    
+  - name: enable ntp
+    service: name=ntp state=started enabled=yes
+
+  - block:
+    - name: Install bind9 packages
+      apt: name={{ item }} state=latest
+      loop:
+          - 'bind9'
+          - 'dnsutils'
+
+    - name: generate bind primary file
+      template: 
+        src: template/bind/db.primary.j2
+        dest: /etc/bind/db.primary
+      notify: Restart bind9
+      
+    - name: generate bind reverse file
+      template: 
+        src: template/bind/db.reverse.j2
+        dest: /etc/bind/db.reverse
+      notify: Restart bind9
+
+    - name: generate bind root file
+      template: 
+        src: template/bind/db.root.j2
+        dest: /etc/bind/db.root 
+      notify: Restart bind9
+
+    - name: generate bind named.conf.local file
+      template: 
+        src: template/bind/named.conf.local.j2
+        dest: /etc/bind/named.conf.local
+      notify: Restart bind9
+
+    - name: generate bind named.conf.options file
+      template: 
+        src: template/bind/named.conf.options.j2
+        dest: /etc/bind/named.conf.options 
+      notify: Restart bind9
+     
+    - name: Enable bind9
+      service: name=bind9 state=started enabled=yes
+    when: dns == true
+  
+  - name: create ald config file
+    template:
+      src: template/ald.conf.j2
+      dest: /etc/ald/ald.conf
+    
+  - name: Create passfile
+    template:
+      src: template/passfile.j2 
+      dest: /home/admuser/passfile
+      mode: 0600
+      owner: root
+      group: root
+
+  - name: init ald
+    shell: ald-init init -f --pass-file /home/admuser/passfile && rm /home/admuser/passfile
+
+  handlers: 
+  - name: Restart ntp
+    service: name=ntp state=restarted
+
+  - name: Restart bind9
+    service: name=bind9 state=restarted

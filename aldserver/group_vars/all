@@ -1,0 +1,7 @@
+ansible_user: admuser
+
+adminpass: 12345678
+REALM: MIL.RU
+conname: "Проводное\\ соединение\\ 1"
+dnsip: 192.168.122.36
+NetworkManager: true

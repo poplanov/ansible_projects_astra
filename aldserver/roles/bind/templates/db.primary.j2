@@ -1,0 +1,9 @@
+$TTL 604800
+@ IN SOA {{ ansible_fqdn }}. root.{{ REALM.lower() }}. (
+20110913 ; Serial
+604800 ; Refresh
+86400 ; Retry
+2419200 ; Expire
+604800 ) ; Negative Cache TTL
+	IN		NS		{{ ansible_hostname }}
+{{ ansible_hostname }}	IN		A		{{ ansible_host }}
