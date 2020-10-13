@@ -1,0 +1,32 @@
+---
+################################################################
+#                                                              #
+# Финальный плейбук, в котором нужно будет указать только роли #
+#                                                              #
+# Author: Poplanov Ivan, Version 1.0                           #
+# ##############################################################
+
+
+- hosts: all
+  become: yes
+  
+  tasks:
+  - name: create hosts file
+    template:
+      src: template/hosts.j2
+      dest: /etc/hosts
+ 
+
+- hosts: linux1
+  become: yes
+  roles: 
+    - aldserver  
+    - bind9 
+
+- hosts: linux2
+  become: yes
+  roles:
+    - aldclient
+    - apache2
+    - postgresql
+

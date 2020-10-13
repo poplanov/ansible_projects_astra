@@ -1,0 +1,68 @@
+---
+# tasks file for aldclient
+- name: Config ntp
+  template: src=ntp.conf.j2 dest=/etc/ntp.conf    
+  #  shell: "sed -i 's/pool [0-9].*/server {{ hostvars[groups['aldserver'][0]]['ansible_host'] }}/' /etc/ntp.conf"
+  notify: Restart ntp
+
+- name: Date from $(date) execution via pipe
+  shell: date +%m%d%H%M%Y
+  register: timeald
+  delegate_to: "{{ hostvars[groups['aldserver'][0]]['ansible_host'] }}"
+
+- name: set tiem
+  shell: date {{ timeald.stdout }}
+
+
+- name: Add host in db.primary
+  lineinfile:
+    path: /etc/bind/db.primary
+    line: "{{ ansible_hostname }}	IN		A		{{ ansible_host }}"
+  delegate_to: "{{ dnsip }}"
+  notify: Restart bind
+
+- name: Add host in db.reverse
+  lineinfile:
+    path: /etc/bind/db.reverse
+    line: "{{ ansible_host.split('.')[3] }}	IN      PTR     {{ ansible_fqdn }}."
+  delegate_to: "{{ dnsip }}"
+  notify: Restart bind
+
+- name: create hosts file
+  copy:
+    dest: /etc/hosts
+    content: |
+            127.0.0.1	localhost
+            {{ ansible_host }}	{{ ansible_hostname }}.{{ REALM.lower() }} {{ ansible_hostname }}
+
+- block: #if NetworkManager is enabled
+  - name: Add two IPv4 DNS server addresses
+    shell: nmcli con mod {{ conname }} ipv4.dns {{ dnsip }} && nmcli con mod {{ conname }} ipv4.dns-search {{ REALM.lower() }}
+    notify: Restart NM
+  - name: Con up nmcli
+    shell: nmcli con up {{ conname }}
+  when: NetworkManager == true
+
+# if NetworkManager is disabled 
+- name: generate resolv conf
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+  when: NetworkManager == false
+
+- name: set ald.conf file
+  template:
+    src: ald.conf.j2
+    dest: /etc/ald/ald.conf
+
+- name: create passfile
+  copy:
+    dest: /tmp/passfile
+    content: |
+            K/M:{{ aldpass }}
+            admin/admin:{{ aldpass }}
+    mode: 0600
+    owner: root
+
+- name: add client to ald server 
+  shell: ald-client join -f --pass-file /tmp/passfile && rm /tmp/passfile

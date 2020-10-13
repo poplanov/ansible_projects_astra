@@ -1,0 +1,15 @@
+[aldserver]
+linux1 ansible_host=192.168.122.35
+
+[aldclient]
+linux2 ansible_host=192.168.122.36
+
+[web]
+linux2 ansible_host=192.168.122.36
+
+[db]
+linux2 ansible_host=192.168.122.36
+
+[app:children]
+web
+db

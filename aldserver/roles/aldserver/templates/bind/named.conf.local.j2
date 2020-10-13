@@ -1,8 +1,0 @@
-zone "{{ REALM.lower() }}"{
-type master;
-file "/etc/bind/db.primary";
-};
-zone "{{ network.split('.')[2] }}.{{ network.split('.')[1] }}.{{ network.split('.')[0] }}.in-addr.arpa" {
-type master;
-file "/etc/bind/db.reverse";
-};
