@@ -1,2 +1,57 @@
 ---
 # tasks file for postgresql
+- name: Install packages
+  apt: name={{ item }} state=latest
+  loop:
+    - postgresql-9.6
+    - postgresql-client-9.6
+    - postgresql-contrib-9.6
+    - postgresql-doc-9.6
+- name: Set postgresql started and enabled
+  service: name=postgresql state=started enabled=yes
+
+- name: Copy locale.gen to target host
+  copy: src=locale.gen dest=/etc/locale.gen
+
+- name: Apply new locale
+  shell: locale-gen
+
+- name: Drop old cluster
+  shell: pg_dropcluster 9.6 main --stop
+ 
+- name: Create new cluster
+  shell: pg_createcluster --locale=ru_RU.UTF-8 9.6 main --start
+
+- name: Configure postgresql
+  copy: 
+    src: postgresql.conf 
+    dest: /etc/postgresql/9.6/main/postgresql.conf
+
+- name: Create pg_hba.conf
+  copy:
+    src: pg_hba.conf
+    dest: /etc/postgresql/9.6/main/pg_hba.conf
+  notify: Restart postgresql    
+   
+- name: create passfile
+  copy:
+    dest: /tmp/passfile
+    content: |
+            K/M:{{ aldpass }}
+            admin/admin:{{ aldpass }}
+    mode: 0600
+    owner: root
+
+- name: Create keytab for postgres
+  shell: ald-client update-svc-keytab postgres/{{ ansible_fqdn }} --ktfile=/etc/postgresql/9.6/main/keytab -f --pass-file /tmp/passfile && rm /tmp/passfile
+  
+- name: Set permission on keytab
+  file: path=/etc/postgresql/9.6/main/keytab owner=postgres mode=0644
+
+- name: Copy pg_tune_v2.py
+  copy: src=pg_tune.py dest=/tmp/pg_tune.py
+
+- name: Exec pg_tune
+  shell: python /tmp/pg_tune.py -f /etc/postgresql/9.6/main/postgresql.conf:w
+
+

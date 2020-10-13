@@ -1,0 +1,11 @@
+---
+# handlers file for aldclient
+- name: Restart ntp
+  service: name=ntp enabled=yes state=restarted
+
+- name: Restart NM
+  service: name=NetworkManager state=restarted
+
+- name: Restart bind
+  service: name=bind9 state=restarted
+  delegate_to: "{{ dnsip }}"

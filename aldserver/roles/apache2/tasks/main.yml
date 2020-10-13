@@ -1,2 +1,54 @@
 ---
 # tasks file for apache2
+#
+- name: Install required and apache2 packages
+  apt: name={{ item }} state=latest
+  loop:
+    - "apache2"
+    - "libapache2-mod-php7.0"
+    - "libapache2-mod-auth-kerb"
+    - "php7.0"
+  
+- name: Create folder for web
+  file:
+    path: /DATA/www
+    state: directory
+    mode: 0755
+
+- name: Enable rewrite, krb module
+  apache2_module: name={{ item }} state=present
+  loop:
+    - "rewrite"
+    - "auth_kerb"
+    
+- name: Disable default site
+  shell: a2dissite 000-default
+
+- name: Create config for MySite
+  template: 
+    src: mysite.conf.j2
+    dest: /etc/apache2/sites-available/mysite.conf
+    
+- name: Enable MySite
+  shell: a2ensite mysite.conf
+  notify: Restart apache2
+
+- name: Generate passfile
+  copy: 
+    dest: /home/admuser/passfile
+    content: |
+            K/M:{{ aldpass }}
+            admin/admin:{{ aldpass }}
+
+    mode: 0600
+    owner: root
+
+- name: copy php.ini
+  copy: 
+    src: php.ini
+    dest: /etc/php/7.0/apache2/php.ini
+
+- name: Create keytab file
+  shell: ald-client update-svc-keytab HTTP/{{ ansible_fqdn }} --ktfile=/etc/apache2/keytab -f --pass-file /home/admuser/passfile && chown www-data /etc/apache2/keytab && rm /home/admuser/passfile
+  notify: Restart apache2
+
